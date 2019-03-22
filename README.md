@@ -16,7 +16,7 @@ It produces a word embedding for cardnames.
 Cardnames are read from the decklists, one line at a time.
 There is no interpretation of lines (except that trailing whitespace is stripped),
 so for instance the lines `1 Forest` and `2 Forest` are treated as completely independent cards.
-Decklists should be placed in the `decks/` folder, one list per file.
+Decklists should be placed in the a file called `decks.zip` or a folder called `decks/`, one deck per file.
 To run the embedder, do `$ python3 card-embedding.py`
 Then you can view the encoding by doing `$ tensorboard --log_dir=.` and pointing a browser at `localhost:6006`
 
