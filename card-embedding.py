@@ -37,17 +37,29 @@ def word2vec_basic(log_dir):
     # pylint: disable=redefined-outer-name
 
     # Read the data into a list of lists of strings
-    def read_data(dir):
+    def read_data_dir(dir):
         """Read lines from all files in dir"""
         data = []
         for filename in os.listdir(dir):
             with open(dir + filename) as f:
                 data += [[line.strip() for line in f.readlines()]]
         return data
-    dir = "decks/"
-    vocabulary = read_data(dir)
+    def read_data_zip(filename):
+        """Read lines from all files in filename (which should be zip)"""
+        data = []
+        print(filename)
+        with zipfile.ZipFile(filename) as z:
+            for deckname in z.infolist():
+                with z.open(deckname) as f:
+                    data.append([line.strip().decode("utf-8") for line in f.readlines()])
+        return data
+    
+    dataDir = "decks/"
+    dataZip = 'decks.zip'
+    vocabulary = read_data_zip(dataZip)
     print('Decks', len(vocabulary))
 
+    print(vocabulary[10])
     # Step 2: Build the dictionary and replace rare words with UNK token.
 
     def build_dataset(decks):
@@ -60,12 +72,10 @@ def word2vec_basic(log_dir):
         ctr = 0
         for word in list(cards):
             dictionary[word] = ctr
-            if ctr in [0,73, 80,87,95,237,240,247,312,320,446,506]:
-                print("ctr word", ctr, word)
             ctr += 1
         print("lens", ctr, len(cards), len(dictionary.keys()),len(dictionary.values()))
-        print(dictionary['1 Jodah, Archmage Eternal C'.strip()])
-        print(dictionary['1 District Guide'])
+        print(dictionary[b'1 Jodah, Archmage Eternal C'])
+        print(dictionary[b'1 District Guide'])
         data = list()
         unk_count = 0
         i = 0
