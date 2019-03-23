@@ -8,6 +8,10 @@ Note that the present state of the data needs some sanitizing, to correct the fo
 - Certain cards have metadata in brackets, e.g. `15 [4E] Swamp` and `1 Abyssal Specter [7ED] (F)`.
 - Uncards appear on certain lists.
 
+'(Ignore that if you're seeing this on github without a dataset.)
+
+
+
 More problems may exist.
 
 `card-embedding.py` was modified from the basic `word2vec.py` example, available on [github](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/word2vec/word2vec_basic.py).
