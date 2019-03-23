@@ -31,11 +31,6 @@ def word2vec_basic(log_dir):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    # Step 1: Download the data.
-    url = 'http://mattmahoney.net/dc/'
-
-    # pylint: disable=redefined-outer-name
-
     # Read the data into a list of lists of strings
     def read_data_dir(dir):
         """Read lines from all files in dir"""
