@@ -75,20 +75,31 @@ def build_dataset(decks):
 deck_size = 100
 input_size = 20 #Can be tuned
 
-def deck_to_example(deck):
+
+def get_random_cards(deck):
     #For now, output a tuple containing 20 random cards and a random card.
     cardnum = input_size+1
-    cards = np.random.choice(deck, 21, replace=False)
+    cards = np.random.choice(deck, cardnum, replace=False)
     #CURRENT ERR HERE: deck is not 1-dimensional. Figure out how to map over datasets.
-    return cards[:20], cards[20]
+    return cards
 
 def make_training_data(data):
-    dataset = tf.data.Dataset.from_tensor_slices(data)
-    return dataset.map(deck_to_example)
-
-
-
+    samples = np.apply_along_axis(get_random_cards, 1, data)
+    data = samples[:,:input_size]
+    labels = samples[:,input_size]
+    return data,labels
 #----------------------------------------------
+
+#--THE MODEL--
+
+def build_model(vocab_size, embedding_dim, units, batch_size):
+    model = tf.keras.Sequential([
+        tf.keras.layers.Embedding(vocab_size,embedding_dim,batch_input_shape=[batch_size,None]),
+        tf.keras.layers.Dense(embedding_dim),
+        tf.keras.layers.Dense(units),
+        tf.keras.layers.Dense(vocab_size)
+    ])
+    return model
 
 def predict_card(partial_deck): #Stub
     return 10
@@ -105,12 +116,30 @@ def main():
     print("decks:", len(decks))
     data,cards,dictionary,rev_dictionary = build_dataset(decks)
     
+    vocab_size = len(cards)
+    assert vocab_size==len(dictionary)
     print("Data:")
     print(data.shape)
     print(data[10,10])
     print(data[1010, 5])
 
-    training_data = make_training_data(data)
+    training_data, labels = make_training_data(data)
+
+    print("Training data:")
+    print(training_data.shape)
+    print("Labels:")
+    print(labels.shape)
+    embedding_dim = 64 #Tune these
+    units = 64
+    batch_size = 64
+    model = build_model(vocab_size,embedding_dim,units,batch_size)
+    model.summary()
+
+    for input_example_batch, target_example_batch in training_data, labels: 
+        example_batch_predictions = model(input_example_batch)
+        print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+
+
     def complete_deck_str(part_deck_str):
         part_deck_codes = [dictionary[name] for name in part_deck_str]
         comp_deck_codes = complete_deck(part_deck_codes)
