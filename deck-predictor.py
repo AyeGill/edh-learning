@@ -85,8 +85,9 @@ def get_random_cards(deck):
 
 def make_training_data(data):
     samples = np.apply_along_axis(get_random_cards, 1, data) #1 = dimension/Axis
-    data = samples[:,:input_size]
-    labels = samples[:,input_size]
+    samples = np.expand_dims(samples, 1)
+    data = samples[:,:,:input_size]
+    labels = samples[:,:,input_size]
     print("Shapes data:", data.shape, "labels", labels.shape)
     dataset = tf.data.Dataset.from_tensor_slices((data,labels))
     
@@ -100,22 +101,12 @@ def make_training_data(data):
 
 def build_model(vocab_size, embedding_dim, units, sample_size):
     model = tf.keras.Sequential([
-        # tf.keras.layers.Embedding(vocab_size,embedding_dim,input_length=20),
-        tf.keras.layers.Dense(units,input_shape=(20,)),
+        tf.keras.layers.Embedding(vocab_size,embedding_dim,input_length=20),
+        tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(units),
         tf.keras.layers.Dense(vocab_size)
     ])
     return model
-
-def predict_card(partial_deck): #Stub
-    return 10
-
-def complete_deck(partial_deck):
-    curr_deck = partial_deck
-    while len(curr_deck)<100:
-        curr_deck.append(predict_card(curr_deck))
-    print("Deck completed, length:", len(curr_deck))
-    return curr_deck
 
 def main():
     decks = read_data_zip('decks.zip')
@@ -153,24 +144,44 @@ def main():
         filepath=checkpoint_prefix,
         save_weights_only=True)
 
-    EPOCHS=3
-    steps_per_epoch = 50000
-    history = model.fit(training_data, epochs=EPOCHS, steps_per_epoch=steps_per_epoch, callbacks=[checkpoint_callback])
+    EPOCHS=2
+    steps_per_epoch = 100
+    history = model.fit(training_data.repeat(), epochs=EPOCHS, steps_per_epoch=steps_per_epoch, callbacks=[checkpoint_callback])
+
+
+    def predict_card(model, partial_deck): #Stub
+        cardsin = [dictionary[card] for card in partial_deck]
+        assert len(cardsin)==20
+        cardsin = np.expand_dims(cardsin, 0)
+        predictions = np.expand_dims(model(cardsin),1)
+        predictions = tf.squeeze(predictions, 0)
+        predicted_id = tf.multinomial(predictions, num_samples=1)[-1,0].numpy()
+        print(rev_dictionary[predicted_id])
+
+    listA = ['Roon of the Hidden Realm C',
+    'Birthing Pod',
+    'Reclamation Sage',
+    'Sol Ring',
+    'Breeding Pool',
+    'Deadeye Navigator',
+    'Temple Garden',
+    'Ixidron',
+    'Ghostly Flicker',
+    'Brutalizer Exarch',
+    'Peregrine Drake',
+    'Karmic Guide',
+    'Coiling Oracle',
+    'Sphinx of Uthuun',
+    'Fact or Fiction',
+    'Swords to Plowshares',
+    'Tempt with Discovery',
+    'Farhaven Elf',
+    'Worldly Tutor',
+    'Forest']
+    print(predict_card(model,listA))
 
 
 
-
-
-    def complete_deck_str(part_deck_str):
-        part_deck_codes = [dictionary[name] for name in part_deck_str]
-        comp_deck_codes = complete_deck(part_deck_codes)
-        return [rev_dictionary[code] for code in comp_deck_codes]
-
-    deckA = ['Jodah, Archmage Eternal C']
-    deckB = ['Thrasios, Triton Hero C', 'Birthing Pod']
-
-    #print(deckA, "->", complete_deck_str(deckA))
-    #print(deckB, "->", complete_deck_str(deckB))
 
 if __name__ == "__main__":
     main()
