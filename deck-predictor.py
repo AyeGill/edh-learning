@@ -84,18 +84,24 @@ def get_random_cards(deck):
     return cards
 
 def make_training_data(data):
-    samples = np.apply_along_axis(get_random_cards, 1, data)
+    samples = np.apply_along_axis(get_random_cards, 1, data) #1 = dimension/Axis
     data = samples[:,:input_size]
     labels = samples[:,input_size]
-    return data,labels
+    print("Shapes data:", data.shape, "labels", labels.shape)
+    dataset = tf.data.Dataset.from_tensor_slices((data,labels))
+    
+    for dat, lab in dataset.take(1):
+        print(dat,lab)
+
+    return dataset
 #----------------------------------------------
 
 #--THE MODEL--
 
-def build_model(vocab_size, embedding_dim, units, batch_size):
+def build_model(vocab_size, embedding_dim, units, sample_size):
     model = tf.keras.Sequential([
-        tf.keras.layers.Embedding(vocab_size,embedding_dim,batch_input_shape=[batch_size,None]),
-        tf.keras.layers.Dense(embedding_dim),
+        # tf.keras.layers.Embedding(vocab_size,embedding_dim,input_length=20),
+        tf.keras.layers.Dense(units,input_shape=(20,)),
         tf.keras.layers.Dense(units),
         tf.keras.layers.Dense(vocab_size)
     ])
@@ -108,7 +114,7 @@ def complete_deck(partial_deck):
     curr_deck = partial_deck
     while len(curr_deck)<100:
         curr_deck.append(predict_card(curr_deck))
-    print("Deck completen, length:", len(curr_deck))
+    print("Deck completed, length:", len(curr_deck))
     return curr_deck
 
 def main():
@@ -123,21 +129,36 @@ def main():
     print(data[10,10])
     print(data[1010, 5])
 
-    training_data, labels = make_training_data(data)
+    training_data = make_training_data(data)
 
-    print("Training data:")
-    print(training_data.shape)
-    print("Labels:")
-    print(labels.shape)
+    print(training_data.output_shapes)
+
     embedding_dim = 64 #Tune these
-    units = 64
-    batch_size = 64
-    model = build_model(vocab_size,embedding_dim,units,batch_size)
+    units = 64*32
+    model = build_model(vocab_size,embedding_dim,units,input_size)
     model.summary()
 
-    for input_example_batch, target_example_batch in training_data, labels: 
-        example_batch_predictions = model(input_example_batch)
-        print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+    
+    def loss(labels, logits):
+        return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+
+    model.compile(optimizer=tf.train.AdamOptimizer(), loss=loss)
+
+    # Directory where the checkpoints will be saved
+    checkpoint_dir = './training_checkpoints'
+    # Name of the checkpoint files
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
+
+    checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
+        filepath=checkpoint_prefix,
+        save_weights_only=True)
+
+    EPOCHS=3
+    steps_per_epoch = 50000
+    history = model.fit(training_data, epochs=EPOCHS, steps_per_epoch=steps_per_epoch, callbacks=[checkpoint_callback])
+
+
+
 
 
     def complete_deck_str(part_deck_str):
@@ -148,8 +169,8 @@ def main():
     deckA = ['Jodah, Archmage Eternal C']
     deckB = ['Thrasios, Triton Hero C', 'Birthing Pod']
 
-    print(deckA, "->", complete_deck_str(deckA))
-    print(deckB, "->", complete_deck_str(deckB))
+    #print(deckA, "->", complete_deck_str(deckA))
+    #print(deckB, "->", complete_deck_str(deckB))
 
 if __name__ == "__main__":
     main()
