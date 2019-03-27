@@ -73,7 +73,7 @@ def build_dataset(decks):
 #For now, the last card is randomized.
 
 deck_size = 100
-input_size = 20 #Can be tuned
+input_size = 2 #Can be tuned - +1
 
 
 def get_random_cards(deck):
@@ -84,29 +84,32 @@ def get_random_cards(deck):
     return cards
 
 def make_training_data(data):
-    samples = np.apply_along_axis(get_random_cards, 1, data) #1 = dimension/Axis
-    samples = np.expand_dims(samples, 1)
-    data = samples[:,:,:input_size]
-    labels = samples[:,:,input_size]
-    print("Shapes data:", data.shape, "labels", labels.shape)
-    dataset = tf.data.Dataset.from_tensor_slices((data,labels))
-    
-    for dat, lab in dataset.take(1):
-        print(dat,lab)
-
-    return dataset
+    samples = np.apply_along_axis(get_random_cards, 1, data)
+    data = samples[:,:input_size]
+    labels = samples[:,input_size]
+    return data,labels
 #----------------------------------------------
 
 #--THE MODEL--
 
-def build_model(vocab_size, embedding_dim, units, sample_size):
+def build_model(vocab_size, embedding_dim, units, batch_size):
     model = tf.keras.Sequential([
-        tf.keras.layers.Embedding(vocab_size,embedding_dim,input_length=20),
-        tf.keras.layers.Flatten(),
+        tf.keras.layers.Embedding(vocab_size,embedding_dim,batch_input_shape=[batch_size,None]),
+        tf.keras.layers.Dense(embedding_dim),
         tf.keras.layers.Dense(units),
         tf.keras.layers.Dense(vocab_size)
     ])
     return model
+
+def predict_card(partial_deck): #Stub
+    return 10
+
+def complete_deck(partial_deck):
+    curr_deck = partial_deck
+    while len(curr_deck)<100:
+        curr_deck.append(predict_card(curr_deck))
+    print("Deck completen, length:", len(curr_deck))
+    return curr_deck
 
 def main():
     decks = read_data_zip('decks.zip')
@@ -120,68 +123,33 @@ def main():
     print(data[10,10])
     print(data[1010, 5])
 
-    training_data = make_training_data(data)
+    training_data, labels = make_training_data(data)
 
-    print(training_data.output_shapes)
-
+    print("Training data:")
+    print(training_data.shape)
+    print("Labels:")
+    print(labels.shape)
     embedding_dim = 64 #Tune these
-    units = 64*32
-    model = build_model(vocab_size,embedding_dim,units,input_size)
+    units = 64
+    batch_size = 64
+    model = build_model(vocab_size,embedding_dim,units,batch_size)
     model.summary()
 
-    
-    def loss(labels, logits):
-        return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
-
-    model.compile(optimizer=tf.train.AdamOptimizer(), loss=loss)
-
-    # Directory where the checkpoints will be saved
-    checkpoint_dir = './training_checkpoints'
-    # Name of the checkpoint files
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
-
-    checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_prefix,
-        save_weights_only=True)
-
-    EPOCHS=2
-    steps_per_epoch = 100
-    history = model.fit(training_data.repeat(), epochs=EPOCHS, steps_per_epoch=steps_per_epoch, callbacks=[checkpoint_callback])
+    for input_example_batch, target_example_batch in training_data, labels: 
+        example_batch_predictions = model(input_example_batch)
+        print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
 
 
-    def predict_card(model, partial_deck): #Stub
-        cardsin = [dictionary[card] for card in partial_deck]
-        assert len(cardsin)==20
-        cardsin = np.expand_dims(cardsin, 0)
-        predictions = np.expand_dims(model(cardsin),1)
-        predictions = tf.squeeze(predictions, 0)
-        predicted_id = tf.multinomial(predictions, num_samples=1)[-1,0].numpy()
-        print(rev_dictionary[predicted_id])
+    def complete_deck_str(part_deck_str):
+        part_deck_codes = [dictionary[name] for name in part_deck_str]
+        comp_deck_codes = complete_deck(part_deck_codes)
+        return [rev_dictionary[code] for code in comp_deck_codes]
 
-    listA = ['Roon of the Hidden Realm C',
-    'Birthing Pod',
-    'Reclamation Sage',
-    'Sol Ring',
-    'Breeding Pool',
-    'Deadeye Navigator',
-    'Temple Garden',
-    'Ixidron',
-    'Ghostly Flicker',
-    'Brutalizer Exarch',
-    'Peregrine Drake',
-    'Karmic Guide',
-    'Coiling Oracle',
-    'Sphinx of Uthuun',
-    'Fact or Fiction',
-    'Swords to Plowshares',
-    'Tempt with Discovery',
-    'Farhaven Elf',
-    'Worldly Tutor',
-    'Forest']
-    print(predict_card(model,listA))
+    deckA = ['Jodah, Archmage Eternal C']
+    deckB = ['Thrasios, Triton Hero C', 'Birthing Pod']
 
-
-
+    print(deckA, "->", complete_deck_str(deckA))
+    print(deckB, "->", complete_deck_str(deckB))
 
 if __name__ == "__main__":
     main()
