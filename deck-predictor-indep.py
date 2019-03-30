@@ -22,7 +22,8 @@ tf.enable_eager_execution()
 from tensorflow.contrib.tensorboard.plugins import projector
 
 from datasetutils import *
-
+#Currently hacked to just ignore duplicate cards.
+#Need better solution a la Frank Karsten deck aggregation ideas
 
 # Calculates M[A,B] = log P(cardA | cardB), given a dataset.
 # I originally thought of this as a naive Bayes-type approach, but there is really nothing particularly Bayes about this
@@ -34,9 +35,9 @@ def decks_ids_to_prob(decks_ids, vocabsize):
     #logctr = 0
     print("marco")
     for deck in decks_ids:
-        for cardA in deck:
+        for cardA in set(deck):
             counts[cardA] += 1
-            for cardB in deck: #Gives bad results on duplicates!
+            for cardB in set(deck): #Gives bad results on duplicates!
                 countsCommon[cardA,cardB] += 1
        # logctr+=1
     
@@ -48,6 +49,11 @@ def decks_ids_to_prob(decks_ids, vocabsize):
             condLogProb[i,B] -= logcB
     return condLogProb
 
+def predict_deck(partial_list, probs):
+    vector = deck_to_vector(partial_list, probs.shape[0])
+    outprobs = np.matmul(probs,vector) #not really probs - log and unnormalized.
+    return np.argmax(outprobs)
+
 def test():
     decks = read_data_zip('decks.zip')
     dic,rev = read_vocab('vocabulary.txt')
@@ -55,4 +61,5 @@ def test():
     probs = decks_ids_to_prob([deck_to_ids(deck,dic) for deck in decks],vsize)
     print("A:", np.exp(probs[dic['Reclamation Sage'],dic['Forest']]))
     print("B:", np.exp(probs[dic['Roon of the Hidden Realm C'],dic['Mountain']]))
+    print("Prediction:" predict_deck([dic['Roon of the Hidden Realm C']]))
     return probs
