@@ -73,7 +73,7 @@ def build_dataset(decks):
 #For now, the last card is randomized.
 
 deck_size = 100
-sequence_size = 10 #+1
+sequence_size = 15 #+1
 
 
 def shuffle(deck):
@@ -116,8 +116,8 @@ def main():
 
     training_data = make_training_data(data)
 
-    embedding_dim = 64 #Tune these
-    units = 64
+    units = 16
+    embedding_dim = 32 #Tune these
     batch_size = 100-sequence_size
     model = build_model(vocab_size,embedding_dim,units,batch_size)
 
@@ -133,21 +133,21 @@ def main():
         filepath=checkpoint_prefix,
         save_weights_only=True)
 
-
+    # Loading is useless unless we save/load vocabulary /facepalm
     # model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
     def loss(labels,logits):
         return tf.keras.losses.sparse_categorical_crossentropy(labels,logits)
 
-    model.compile(tf.train.AdamOptimizer(),loss=loss)
+    model.compile(tf.train.AdamOptimizer(learning_rate=0.1) ,loss=loss) #Higher learning rate
 
     for input_example_batch, target_example_batch in training_data.take(1): 
         example_batch_predictions = model(input_example_batch)
         print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
 
 
-    #EPOCHS = 1
-    #steps_per_epoch = 1000
-    #model.fit(training_data, batch_size=batch_size, steps_per_epoch=steps_per_epoch, epochs=EPOCHS,callbacks=[checkpoint_callback])
+    EPOCHS = 1
+    steps_per_epoch = 50000
+    model.fit(training_data.repeat(), batch_size=batch_size, steps_per_epoch=steps_per_epoch, epochs=EPOCHS,callbacks=[checkpoint_callback])
 
     def predict_cards(model, partial_deck):
         num_gen = 100-len(partial_deck)
@@ -173,8 +173,7 @@ def main():
 
 
 
-    deckA = ['Roon of the Hidden Realm C'] + ['Forest'] * 9
-
+    deckA = ['Roon of the Hidden Realm C', 'Acidic Slime', 'Angel of Finality', 'Reflector Mage', 'Eternal Witness', 'Farhaven Elf', 'Deadeye Navigator']
     print(deckA, "->", predict_cards(model,deckA))
 
 if __name__ == "__main__":

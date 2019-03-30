@@ -76,7 +76,7 @@ def build_dataset(decks):
 #For now, the last card is randomized.
 
 deck_size = 100
-input_size = 20 #Can be tuned
+input_size = 2 #Can be tuned - +1
 
 
 def get_random_cards(deck):
@@ -107,7 +107,7 @@ def make_training_data(data,vocab_size):
 
 #--THE MODEL--
 
-def build_model(vocab_size, embedding_dim, units, sample_size):
+def build_model(vocab_size, embedding_dim, units, batch_size):
     model = tf.keras.Sequential([
         tf.keras.layers.Embedding(vocab_size,embedding_dim,input_length=20),
         tf.keras.layers.Flatten(),
@@ -116,6 +116,16 @@ def build_model(vocab_size, embedding_dim, units, sample_size):
         tf.keras.layers.Reshape(-1)
     ])
     return model
+
+def predict_card(partial_deck): #Stub
+    return 10
+
+def complete_deck(partial_deck):
+    curr_deck = partial_deck
+    while len(curr_deck)<100:
+        curr_deck.append(predict_card(curr_deck))
+    print("Deck completen, length:", len(curr_deck))
+    return curr_deck
 
 def main():
     epochIn = int(input("Train for how many epochs? :"))
@@ -135,6 +145,7 @@ def main():
     if epochIn>0:
         training_data = make_training_data(data,vocab_size)
 
+<<<<<<< HEAD
     embedding_dim = 16 #Tune these
     units = 32
     model = build_model(vocab_size,embedding_dim,units,input_size)
@@ -215,9 +226,35 @@ def main():
     'Plains']
     for i in range(10):
         print(predict_card(model,listA), predict_card(model,listB))
+=======
+    training_data, labels = make_training_data(data)
 
+    print("Training data:")
+    print(training_data.shape)
+    print("Labels:")
+    print(labels.shape)
+    embedding_dim = 64 #Tune these
+    units = 64
+    batch_size = 64
+    model = build_model(vocab_size,embedding_dim,units,batch_size)
+    model.summary()
 
+    for input_example_batch, target_example_batch in training_data, labels: 
+        example_batch_predictions = model(input_example_batch)
+        print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
 
+>>>>>>> 93f39be732f85619bc10927c8f3abfc165f9619a
+
+    def complete_deck_str(part_deck_str):
+        part_deck_codes = [dictionary[name] for name in part_deck_str]
+        comp_deck_codes = complete_deck(part_deck_codes)
+        return [rev_dictionary[code] for code in comp_deck_codes]
+
+    deckA = ['Jodah, Archmage Eternal C']
+    deckB = ['Thrasios, Triton Hero C', 'Birthing Pod']
+
+    print(deckA, "->", complete_deck_str(deckA))
+    print(deckB, "->", complete_deck_str(deckB))
 
 if __name__ == "__main__":
     main()
