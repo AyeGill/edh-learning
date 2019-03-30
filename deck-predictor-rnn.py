@@ -116,7 +116,7 @@ def main():
 
     training_data = make_training_data(data)
 
-    units = 256
+    units = 16
     embedding_dim = 32 #Tune these
     batch_size = 100-sequence_size
     model = build_model(vocab_size,embedding_dim,units,batch_size)
@@ -138,14 +138,14 @@ def main():
     def loss(labels,logits):
         return tf.keras.losses.sparse_categorical_crossentropy(labels,logits)
 
-    model.compile(tf.train.AdamOptimizer(learning_rate=0.01) ,loss=loss) #Higher learning rate
+    model.compile(tf.train.AdamOptimizer(learning_rate=0.1) ,loss=loss) #Higher learning rate
 
     for input_example_batch, target_example_batch in training_data.take(1): 
         example_batch_predictions = model(input_example_batch)
         print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
 
 
-    EPOCHS = 10
+    EPOCHS = 1
     steps_per_epoch = 50000
     model.fit(training_data.repeat(), batch_size=batch_size, steps_per_epoch=steps_per_epoch, epochs=EPOCHS,callbacks=[checkpoint_callback])
 
