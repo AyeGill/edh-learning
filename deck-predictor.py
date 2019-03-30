@@ -19,6 +19,7 @@ tf.enable_eager_execution()
 
 from tensorflow.contrib.tensorboard.plugins import projector
 
+max_decks = 10000
 def read_data_zip(filename):
     #This should really operate on codes, not strings.
     """Read lines from all files in filename (which should be zip)"""
@@ -32,6 +33,8 @@ def read_data_zip(filename):
                     decks.append([line.strip().decode("utf-8") for line in lines])
                 else:
                     print("ERR: deck with wrong size", deckname, "not loaded, moving on")
+            if len(decks)>=max_decks:
+                break
     return decks
 
 def build_dataset(decks):
@@ -78,16 +81,21 @@ input_size = 20 #Can be tuned
 
 def get_random_cards(deck):
     #For now, output a tuple containing 20 random cards and a random card.
-    cardnum = input_size+1
-    cards = np.random.choice(deck, cardnum, replace=False)
+    cards = np.random.choice(deck, 100, replace=False)
     #CURRENT ERR HERE: deck is not 1-dimensional. Figure out how to map over datasets.
     return cards
 
-def make_training_data(data):
+def make_label(cards, vocab_size):
+    out = np.zeros(vocab_size)
+    for c in cards:
+        out[int(c)] = 1
+    return out
+def make_training_data(data,vocab_size):
     samples = np.apply_along_axis(get_random_cards, 1, data) #1 = dimension/Axis
     samples = np.expand_dims(samples, 1)
     data = samples[:,:,:input_size]
-    labels = samples[:,:,input_size]
+    labels = samples[:,:,input_size:]
+    labels = np.apply_along_axis(make_label, 2, labels, vocab_size)
     print("Shapes data:", data.shape, "labels", labels.shape)
     dataset = tf.data.Dataset.from_tensor_slices((data,labels))
     
@@ -103,14 +111,19 @@ def build_model(vocab_size, embedding_dim, units, sample_size):
     model = tf.keras.Sequential([
         tf.keras.layers.Embedding(vocab_size,embedding_dim,input_length=20),
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(units),
-        tf.keras.layers.Dense(vocab_size)
+        tf.keras.layers.Dense(units,activation='sigmoid'),
+        tf.keras.layers.Dense(vocab_size),
+        tf.keras.layers.Reshape(-1)
     ])
     return model
 
 def main():
+    epochIn = int(input("Train for how many epochs? :"))
+    epochsTrained = int(input("Start at what epoch? :"))
+    print("Training for epochs:", epochIn)
     decks = read_data_zip('decks.zip')
-    print("decks:", len(decks))
+    numDecks = len(decks)
+    print("decks:", numDecks)
     data,cards,dictionary,rev_dictionary = build_dataset(decks)
     
     vocab_size = len(cards)
@@ -119,18 +132,17 @@ def main():
     print(data.shape)
     print(data[10,10])
     print(data[1010, 5])
+    if epochIn>0:
+        training_data = make_training_data(data,vocab_size)
 
-    training_data = make_training_data(data)
-
-    print(training_data.output_shapes)
-
-    embedding_dim = 64 #Tune these
-    units = 64*32
+    embedding_dim = 16 #Tune these
+    units = 32
     model = build_model(vocab_size,embedding_dim,units,input_size)
     model.summary()
 
     
     def loss(labels, logits):
+        labels = tf.expand_dims(labels, 0)
         return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
     model.compile(optimizer=tf.train.AdamOptimizer(), loss=loss)
@@ -143,10 +155,12 @@ def main():
     checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_prefix,
         save_weights_only=True)
-
-    EPOCHS=2
-    steps_per_epoch = 100
-    history = model.fit(training_data.repeat(), epochs=EPOCHS, steps_per_epoch=steps_per_epoch, callbacks=[checkpoint_callback])
+    #if epochsTrained==0:
+    #    model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
+    if epochIn>0:
+        EPOCHS=epochIn
+        steps_per_epoch = 10000
+        history = model.fit(training_data.repeat(), epochs=EPOCHS, initial_epoch=epochsTrained, steps_per_epoch=steps_per_epoch, callbacks=[checkpoint_callback])
 
 
     def predict_card(model, partial_deck): #Stub
@@ -156,7 +170,7 @@ def main():
         predictions = np.expand_dims(model(cardsin),1)
         predictions = tf.squeeze(predictions, 0)
         predicted_id = tf.multinomial(predictions, num_samples=1)[-1,0].numpy()
-        print(rev_dictionary[predicted_id])
+        return rev_dictionary[predicted_id]
 
     listA = ['Roon of the Hidden Realm C',
     'Birthing Pod',
@@ -178,7 +192,29 @@ def main():
     'Farhaven Elf',
     'Worldly Tutor',
     'Forest']
-    print(predict_card(model,listA))
+
+    listB = ['Roon of the Hidden Realm C',
+    'Birthing Pod',
+    'Reclamation Sage',
+    'Sol Ring',
+    'Breeding Pool',
+    'Deadeye Navigator',
+    'Temple Garden',
+    'Ixidron',
+    'Ghostly Flicker',
+    'Brutalizer Exarch',
+    'Peregrine Drake',
+    'Karmic Guide',
+    'Coiling Oracle',
+    'Sphinx of Uthuun',
+    'Fact or Fiction',
+    'Swords to Plowshares',
+    'Tempt with Discovery',
+    'Farhaven Elf',
+    'Worldly Tutor',
+    'Plains']
+    for i in range(10):
+        print(predict_card(model,listA), predict_card(model,listB))
 
 
 
