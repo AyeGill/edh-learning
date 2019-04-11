@@ -40,26 +40,53 @@ def decks_ids_to_prob(decks_ids, vocabsize):
             for cardB in set(deck): #Gives bad results on duplicates!
                 countsCommon[cardA,cardB] += 1
        # logctr+=1
-    
+    logProb = np.log(counts) - np.log(len(decks_ids))
     condLogProb = np.log(countsCommon) #condLogProb[A,B] = log P(A|B) = log P(A,B) - log P(B) = (log #(A,B) - log #total) - (log #B - log #total) 
                                        #= log #(A,B) - log #B
     for B in range(vocabsize):
         logcB = np.log(counts[B])
         for i in range(vocabsize):
             condLogProb[i,B] -= logcB
-    return condLogProb
+    return condLogProb,logProb
 
-def predict_deck(partial_list, probs):
-    vector = deck_to_vector(partial_list, probs.shape[0])
-    outprobs = np.matmul(probs,vector) #not really probs - log and unnormalized.
+
+def predict_card(partial_list, probs,cprobs):
+    outprobs = np.copy(probs)
+    for card_id in partial_list:
+        outprobs += cprobs[card_id,:]
+        outprobs[card_id] = -np.inf
     return np.argmax(outprobs)
 
-def test():
+def predict_deck(partial_list,probs,cprobs): #currently outputs probably too few lands.
+    outlist = []
+    while len(outlist + partial_list)<100:
+        new_card = predict_card(partial_list + outlist, probs,cprobs)
+        outlist.append(new_card)
+    return outlist
+
+def predict_deck_f(partial_list,probs,cprobs):
+    outlist = []
+    outprobs = np.copy(probs)
+    for card_id in partial_list:
+        outprobs += cprobs[card_id,:]
+        outprobs[card_id] = -np.inf
+    while len(outlist + partial_list)<100:
+        new_card = np.argmax(outprobs)
+        outlist.append(new_card)
+        outprobs += cprobs[new_card,:]
+        outprobs[new_card] = -np.inf
+    return outlist
+
+
+def load():
+    dic,rev = read_vocab('vocabulary.txt')
+    cprobs = np.load('cprobs.npy')
+    probs = np.load('probs.npy')
+    return dic,rev,cprobs,probs
+
+def gen_probs():
     decks = read_data_zip('decks.zip')
     dic,rev = read_vocab('vocabulary.txt')
-    vsize = len(dic) 
-    probs = decks_ids_to_prob([deck_to_ids(deck,dic) for deck in decks],vsize)
-    print("A:", np.exp(probs[dic['Reclamation Sage'],dic['Forest']]))
-    print("B:", np.exp(probs[dic['Roon of the Hidden Realm C'],dic['Mountain']]))
-    print("Prediction:" predict_deck([dic['Roon of the Hidden Realm C']]))
-    return probs
+    condprobs,probs = decks_ids_to_prob([deck_to_ids(deck,dic) for deck in decks],len(dic.keys()))
+    np.save('probs',probs)
+    np.save('cprobs',condprobs)
