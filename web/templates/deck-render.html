@@ -1,0 +1,30 @@
+<!doctype html>
+<style type="text/css"> .div {
+    text-align:center;
+    }
+
+div#deck a {color:black; text-decoration: none; text-align:center}
+
+.bottom {
+    text-align:right;
+}
+</style>
+<script src="https://deckbox.org/assets/external/tooltip.js"></script>
+
+<title>Memnarch</title>
+
+<div class="div" id="deck">
+<h4>You entered these cards:</h4>
+{% for name,string in oldcards%}
+<a href="https://deckbox.org/mtg/{{name}}">{{string}}</a><br>
+{% endfor %}
+
+<h4>Your completed deck:</h4>
+{% for name,string in cards%}
+<a href="https://deckbox.org/mtg/{{name}}">{{string}}</a><br>
+{% endfor %}
+</div>
+
+<div class="bottom">
+    Card images courtesy of <a href="https://deckbox.org">deckbox.org</a>
+</div>

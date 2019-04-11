@@ -1,0 +1,9 @@
+<!doctype html>
+<title>test title</title>
+
+<p>Enter text here:</p>
+
+<form action="{{ url_for('submit') }}" method="POST">
+    <textarea name="text"></textarea>
+    <input type="submit">
+</form>

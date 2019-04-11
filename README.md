@@ -25,3 +25,6 @@ To run the embedder, do `$ python3 card-embedding.py`
 Then you can view the encoding by doing `$ tensorboard --log_dir=.` and pointing a browser at `localhost:6006`
 
 Future projects: train a model to complete decks.
+
+Currently experiencing success with a naive-bayes approach, found in `deck_predictor_indep.py`.
+Current version loads all 2 gigs of data into memory at once. Clearly inefficient.
